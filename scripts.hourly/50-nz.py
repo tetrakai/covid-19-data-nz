@@ -53,7 +53,7 @@ def main():
     'sources': source_data,
   }
 
-  with open('nz.json', 'w') as f:
+  with open('nzl.json', 'w') as f:
     json.dump(formatted_data, f, indent=2, sort_keys=True)
 
 def get_timeseries_data(base_url):
@@ -66,7 +66,6 @@ def get_timeseries_data(base_url):
 
   # We don't care about posts from before 2020
   while current_year == '2020':
-    print page_num
     page = bs4.BeautifulSoup(requests.get(base_url + '?page=%d' % page_num).text, 'html.parser')
     content = page.select_one('div.view-content')
 
@@ -168,7 +167,6 @@ def get_timeseries_data(base_url):
       if m:
         tests = parse_num(m.group('tests'))
 
-    print date.strftime('%Y-%m-%d'), confirmed, recovered, deaths, hospitalized, icu, tests
     if confirmed is not None:
       data[date.strftime('%Y-%m-%d')] = {
         'confirmed': confirmed,
