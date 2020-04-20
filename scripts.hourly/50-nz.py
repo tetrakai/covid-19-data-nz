@@ -102,7 +102,7 @@ def get_timeseries_data(base_url):
     tests = None
     deaths = None
 
-    m = re.match(r'.*There are (?:now )?(?P<recovered>\d+) (?:(?:reported cases)|(?:individuals)|(?:cases)) (?:of COVID-19 )?(?:infection )?(?:(?:(?:which )?(?:that )?we can confirm)|who) (?:have|are) recovered.*', content, re.MULTILINE | re.DOTALL)
+    m = re.match(r'.*There are (?:now )?(?P<recovered>\d+) (?:(?:reported cases)|(?:individuals)|(?:cases)|(?:people)) (?:of COVID-19 )?(?:with COVID-19 )?(?:infection )?(?:(?:(?:which )?(?:that )?we can confirm)|who) (?:have|are) recovered.*', content, re.MULTILINE | re.DOTALL)
     if m:
       recovered = parse_num(m.group('recovered'))
 
