@@ -72,7 +72,7 @@ def get_timeseries_data(base_url):
     for li in content.select('div.item-list li'):
       title_div = li.select_one('div.views-field-title')
 
-      if 'COVID-19' in title_div.text or 'new cases' in title_div.text:
+      if ('COVID-19' in title_div.text or 'new cases' in title_div.text) and 'COVID-19 media update' not in title_div.text and 'Point of Care Test Kits' not in title_div.text:
         post_list.append('https://www.health.govt.nz%s' % title_div.select_one('a').attrs['href'])
 
       current_year = li.select_one('span.date-display-single').attrs['content'].split('-')[0]
@@ -102,11 +102,15 @@ def get_timeseries_data(base_url):
     tests = None
     deaths = None
 
-    m = re.match(r'.*There are (?:now )?(?P<recovered>\d+) (?:(?:reported cases)|(?:individuals)|(?:cases)|(?:people)) (?:of COVID-19 )?(?:with COVID-19 )?(?:infection )?(?:(?:(?:which )?(?:that )?we can confirm)|who) (?:have|are) recovered.*', content, re.MULTILINE | re.DOTALL)
+    m = re.match(r'.*There are (?:now )?(?P<recovered>[\d,]+) (?:(?:reported cases)|(?:individuals)|(?:cases)|(?:people)) (?:of COVID-19 )?(?:with COVID-19 )?(?:infection )?(?:(?:(?:which )?(?:that )?we can confirm)|who) (?:have|are) recovered.*', content, re.MULTILINE | re.DOTALL)
     if m:
       recovered = parse_num(m.group('recovered'))
+    else:
+      m = re.match(r'.*total number of people who have recovered to (?P<recovered>[\d,]+)[^\d,].*', content, re.MULTILINE | re.DOTALL)
+      if m:
+        recovered = parse_num(m.group('recovered'))
 
-    m = re.match(r'.*total (?:number )?of (?:confirmed )?(?:and probable )?(?:COVID-19 )?cases (?:in New Zealand )?(is|to) (?:a total of )?(?P<confirmed>\d+)[^\d].*', content, re.MULTILINE | re.DOTALL)
+    m = re.match(r'.*total (?:number )?of (?:confirmed )?(?:and probable )?(?:COVID-19 )?cases (?:in New Zealand )?(is|to) (?:a total of )?(?P<confirmed>[\d,]+)[^\d,].*', content, re.MULTILINE | re.DOTALL)
     if m:
       confirmed = parse_num(m.group('confirmed'))
 
