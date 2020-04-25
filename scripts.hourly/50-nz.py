@@ -71,8 +71,9 @@ def get_timeseries_data(base_url):
 
     for li in content.select('div.item-list li'):
       title_div = li.select_one('div.views-field-title')
+      news_type = li.select_one('div.views-field-field-news-type')
 
-      if ('COVID-19' in title_div.text or 'new cases' in title_div.text) and 'COVID-19 media update' not in title_div.text and 'Point of Care Test Kits' not in title_div.text:
+      if ('COVID-19' in title_div.text or 'new cases' in title_div.text) and news_type.text.strip() == 'Media release' and 'Point of Care Test Kits' not in title_div.text:
         post_list.append('https://www.health.govt.nz%s' % title_div.select_one('a').attrs['href'])
 
       current_year = li.select_one('span.date-display-single').attrs['content'].split('-')[0]
@@ -109,6 +110,10 @@ def get_timeseries_data(base_url):
       m = re.match(r'.*total number of people who have recovered to (?P<recovered>[\d,]+)[^\d,].*', content, re.MULTILINE | re.DOTALL)
       if m:
         recovered = parse_num(m.group('recovered'))
+      else:
+        m = re.match(r'.*with (?P<recovered>[\d,]+) reported as recovered.*', content, re.MULTILINE | re.DOTALL)
+        if m:
+          recovered = parse_num(m.group('recovered'))
 
     m = re.match(r'.*total (?:number )?of (?:confirmed )?(?:and probable )?(?:COVID-19 )?cases (?:in New Zealand )?(is|to) (?:a total of )?(?P<confirmed>[\d,]+)[^\d,].*', content, re.MULTILINE | re.DOTALL)
     if m:
@@ -163,7 +168,7 @@ def get_timeseries_data(base_url):
         epi_link = int(round(confirmed * epi_link_perc))
         investigation = int(round(confirmed * investigation_perc))
 
-    m = re.match(r'.*total (?:(?:number of cases carried out)|(?:tests)|(?:of lab tests)) to date (to|of|is) (?P<tests>[\d,]+)[^\d].*', content, re.MULTILINE | re.DOTALL)
+    m = re.match(r'.*total (?:(?:number of cases carried out)|(?:tests)|(?:of (lab )?tests)) (?:undertaken )?to date (to|of|is|are) (?P<tests>[\d,]+)[^\d].*', content, re.MULTILINE | re.DOTALL)
     if m:
       tests = parse_num(m.group('tests'))
     else:
