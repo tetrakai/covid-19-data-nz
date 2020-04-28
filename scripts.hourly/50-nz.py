@@ -103,7 +103,7 @@ def get_timeseries_data(base_url):
     tests = None
     deaths = None
 
-    m = re.match(r'.*There are (?:now )?(?P<recovered>[\d,]+) (?:(?:reported cases)|(?:individuals)|(?:cases)|(?:people)) (?:of COVID-19 )?(?:with COVID-19 )?(?:infection )?(?:(?:(?:which )?(?:that )?we can confirm)|who) (?:have|are) recovered.*', content, re.MULTILINE | re.DOTALL)
+    m = re.match(r'.*There are (?:now )?(?P<recovered>[\d,]+) (?:(?:reported cases)|(?:individuals)|(?:cases)|(?:people)|(?:people reported as)) (?:(?:of COVID-19 )?(?:with COVID-19 )?(?:infection )?(?:(?:(?:which )?(?:that )?we can confirm)|who) )?(?:have|are|having) recovered.*', content, re.MULTILINE | re.DOTALL)
     if m:
       recovered = parse_num(m.group('recovered'))
     else:
@@ -111,7 +111,7 @@ def get_timeseries_data(base_url):
       if m:
         recovered = parse_num(m.group('recovered'))
       else:
-        m = re.match(r'.*with (?P<recovered>[\d,]+) reported as recovered.*', content, re.MULTILINE | re.DOTALL)
+        m = re.match(r'.*(?:(?:our cases,)|with) (?P<recovered>[\d,]+) (?:are )?reported as recovered.*', content, re.MULTILINE | re.DOTALL)
         if m:
           recovered = parse_num(m.group('recovered'))
 
@@ -175,6 +175,10 @@ def get_timeseries_data(base_url):
       m = re.match(r'.*[^\d,](?P<tests>[\d,]+) (?:total )?tests (?:have been )?processed to date\..*', content, re.MULTILINE | re.DOTALL)
       if m:
         tests = parse_num(m.group('tests'))
+      else:
+        m = re.match(r'.*tests completed yesterday, with a combined total to date of (?P<tests>[\d,]+)\..*', content, re.MULTILINE | re.DOTALL)
+        if m:
+          tests = parse_num(m.group('tests'))
 
     if confirmed is not None:
       data[date.strftime('%Y-%m-%d')] = {
