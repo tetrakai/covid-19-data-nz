@@ -92,76 +92,61 @@ def get_timeseries_data(base_url):
 
     content = soup.select_one('div.field-name-body').text
 
-    recovered = None
-    confirmed = None
-    hospitalized = None
-    icu = None
+    tmp_data = {}
     overseas = None
     community = None
     epi_link = None
     investigation = None
-    tests = None
-    deaths = None
 
-    m = re.match(r'.*There are (?:now )?(?P<recovered>[\d,]+) (?:(?:reported cases)|(?:individuals)|(?:cases)|(?:people)|(?:people reported as)) (?:(?:of COVID-19 )?(?:with COVID-19 )?(?:infection )?(?:(?:(?:which )?(?:that )?we can confirm)|who) )?(?:have|are|having) recovered.*', content, re.MULTILINE | re.DOTALL)
-    if m:
-      recovered = parse_num(m.group('recovered'))
-    else:
-      m = re.match(r'.*total number of people who have recovered to (?P<recovered>[\d,]+)[^\d,].*', content, re.MULTILINE | re.DOTALL)
-      if m:
-        recovered = parse_num(m.group('recovered'))
-      else:
-        m = re.match(r'.*(?:(?:our cases,)|with|are|have) (?P<recovered>[\d,]+) (?:people )?(?:cases )?(?:that )?(?:are )?reported as (?:having )?recovered.*', content, re.MULTILINE | re.DOTALL)
+    regexes = {
+      'recovered': [
+        r'.*There are (?:now )?(?P<recovered>[\d,]+) (?:(?:reported cases)|(?:individuals)|(?:cases)|(?:people)|(?:people reported as)) (?:(?:of COVID-19 )?(?:with COVID-19 )?(?:infection )?(?:(?:(?:which )?(?:that )?we can confirm)|who) )?(?:have|are|having) recovered.*',
+        r'.*total number of people who have recovered to (?P<recovered>[\d,]+)[^\d,].*',
+        r'.*(?:(?:our cases,)|with|are|have) (?P<recovered>[\d,]+) (?:people )?(?:cases )?(?:that )?(?:are )?reported as (?:having )?recovered.*'
+      ],
+      'confirmed': [
+        r'.*total (?:number )?of (?:confirmed )?(?:and probable )?(?:COVID-19 )?cases (?:in New Zealand )?(is|to) (?:a total of )?(?P<confirmed>[\d,]+)[^\d,].*',
+        r'.*total number of COVID-19 cases in New Zealand, which remains at (?P<confirmed>[\d,]+)[^\d,].*',
+        r'.*total of confirmed and probable cases[^.]+ (to|at) (?P<confirmed>[\d,]+)[^\d,].*',
+      ],
+      'deaths': [
+        r'.*the total of deaths in New Zealand to (?P<deaths>\d+)[^\d].*',
+        r'.*New Zealand now has (?P<deaths>[^ ]+) (?:COVID-19 related )?deaths(?: associated with COVID-19)?.*',
+        r'.*to report (a|(the country.s)) (?P<deaths>[^ ]+) death linked to COVID-19.*',
+        r'.*There have now been (?P<deaths>[^ ]+) deaths from COVID-19.*',
+        r'.*total number of confirmed COVID-19 deaths in New Zealand to (?P<deaths>[^.]+).*',
+        r'.*we have one additional death to report today which takes our total to (?P<deaths>[^.]+).*',
+        r'.*This is our (?P<deaths>[^ ]+) death from COVID-19.*'
+      ],
+      'hospitalized': [
+        r'.*(?:(?:[Tt]here are)|(?:we have)|(?:can report)) (?P<hospitalized>[^ ]+) (?:people )?in hospital.*(((That|(The total)|(That total)) includes)|including) (?P<icu>[^ ]+) (?:people )?(?:person )?(?:in [^ ]+ )?in (?:the )?ICU[ \.].*',
+        r'.*(?:(?:[Tt]here are)|(?:[Ww]e have)|(?:can report)) (?P<hospitalized>[^ ]+) people (?:remain )?in hospital(?: with COVID-19)?.*',
+      ],
+      'icu': [
+        r'.*(?:(?:[Tt]here are)|(?:we have)|(?:can report)) (?P<hospitalized>[^ ]+) (?:people )?in hospital.*(((That|(The total)|(That total)) includes)|including) (?P<icu>[^ ]+) (?:people )?(?:person )?(?:in [^ ]+ )?in (?:the )?ICU[ \.].*',
+        r'.*(?P<icu>([Nn]either)|([Nn]one)) (?:are )?in ICU.*'
+      ],
+      'tests': [
+        r'.*total (?:(?:number of cases carried out)|(?:tests)|(?:(?:number )?of (lab )?tests)) (?:undertaken )?(?:completed )?to date (to|of|is|are) (?P<tests>[\d,]+)[^\d].*',
+        r'.*[^\d,](?P<tests>[\d,]+) (?:total )?tests (?:have been )?processed to date\..*',
+        r'.*tests completed(?: yesterday,)? (with|for) a combined total to date of (?P<tests>[\d,]+)\..*',
+      ]
+    }
+
+    for group_name, regex_list in regexes.iteritems():
+      for r in regex_list:
+        m = re.match(r, content, re.MULTILINE | re.DOTALL)
         if m:
-          recovered = parse_num(m.group('recovered'))
+          matched = m.group(group_name)
 
-    m = re.match(r'.*total (?:number )?of (?:confirmed )?(?:and probable )?(?:COVID-19 )?cases (?:in New Zealand )?(is|to) (?:a total of )?(?P<confirmed>[\d,]+)[^\d,].*', content, re.MULTILINE | re.DOTALL)
-    if m:
-      confirmed = parse_num(m.group('confirmed'))
-    else:
-      m = re.match(r'.*total number of COVID-19 cases in New Zealand, which remains at (?P<confirmed>[\d,]+)[^\d,].*', content, re.MULTILINE | re.DOTALL)
-      if m:
-        confirmed = parse_num(m.group('confirmed'))
-      else:
-        m = re.match(r'.*total of confirmed and probable cases[^.]+ (to|at) (?P<confirmed>[\d,]+)[^\d,].*', content, re.MULTILINE | re.DOTALL)
-        if m:
-          confirmed = parse_num(m.group('confirmed'))
+          if matched.lower() in ['neither', 'none']:
+            tmp_data[group_name] = 0
+          elif matched.endswith('th') or matched in ['first', 'second', 'third']:
+            tmp_data[group_name] = parse_ordinal(matched)
+          else:
+            tmp_data[group_name] = parse_num(matched)
 
-    death_regexes = [
-      r'.*the total of deaths in New Zealand to (?P<deaths>\d+)[^\d].*',
-      r'.*New Zealand now has (?P<deaths>[^ ]+) (?:COVID-19 related )?deaths(?: associated with COVID-19)?.*',
-      r'.*to report (a|(the country.s)) (?P<deaths>[^ ]+) death linked to COVID-19.*',
-      r'.*There have now been (?P<deaths>[^ ]+) deaths from COVID-19.*',
-      r'.*total number of confirmed COVID-19 deaths in New Zealand to (?P<deaths>[^.]+).*',
-      r'.*we have one additional death to report today which takes our total to (?P<deaths>[^.]+).*',
-      r'.*This is our (?P<deaths>[^ ]+) death from COVID-19.*',
-    ]
-
-    for r in death_regexes:
-      m = re.match(r, content, re.MULTILINE | re.DOTALL)
-      if m:
-        if m.group('deaths').endswith('th') or m.group('deaths') in ['first', 'second', 'third']:
-          deaths = parse_ordinal(m.group('deaths'))
-        else:
-          deaths = parse_num(m.group('deaths'))
-        break
-
-    # m = re.match(r'.*There are no (additional|new|further) (?:COVID-19 )?deaths to report.*', content, re.MULTILINE | re.DOTALL)
-
-    m = re.match(r'.*(?:(?:[Tt]here are)|(?:we have)|(?:can report)) (?P<hospitalized>[^ ]+) (?:people )?in hospital.*(((That|(The total)|(That total)) includes)|including) (?P<icu>[^ ]+) (?:people )?(?:person )?(?:in [^ ]+ )?in (?:the )?ICU[ \.].*', content, re.MULTILINE | re.DOTALL)
-    if m:
-      hospitalized = parse_num(m.group('hospitalized'))
-      icu = parse_num(m.group('icu'))
-
-    else:
-      m = re.match(r'.*(?:(?:[Tt]here are)|(?:[Ww]e have)|(?:can report)) (?P<hospitalized>[^ ]+) people (?:remain )?in hospital(?: with COVID-19)?.*', content, re.MULTILINE | re.DOTALL)
-      if m:
-        hospitalized = parse_num(m.group('hospitalized'))
-
-    if icu is None:
-      m = re.match(r'.*(([Nn]either)|([Nn]one)) (?:are )?in ICU.*', content, re.MULTILINE | re.DOTALL)
-      if m:
-        icu = 0
+          break
 
     m = re.match(r'.* to overseas travel \((?P<overseas>\d+)\%\).*links to confirmed cases within New Zealand \((?P<within_nz>\d+)\%\).*community transmission \((?P<community>\d+)\%\).*(?:still investigating (?P<investigation>\d+)\%)?.*', content, re.MULTILINE | re.DOTALL)
     if m:
@@ -173,11 +158,11 @@ def get_timeseries_data(base_url):
       else:
         investigation_perc = None
 
-      overseas = int(round(confirmed * overseas_perc))
-      community = int(round(confirmed * community_perc))
-      epi_link = int(round(confirmed * (within_nz_perc - community_perc)))
+      overseas = int(round(tmp_data['confirmed'] * overseas_perc))
+      community = int(round(tmp_data['confirmed'] * community_perc))
+      epi_link = int(round(tmp_data['confirmed'] * (within_nz_perc - community_perc)))
       if investigation_perc is not None:
-        investigation = int(round(confirmed * investigation_perc))
+        investigation = int(round(tmp_data['confirmed'] * investigation_perc))
     else:
       m = re.match(r'.* (?P<epi_link>\d+)\% involve contact with a confirmed case within New Zealand.*(?P<overseas>\d+)\% have a link with overseas travel.*community transmission accounts for (?P<community>\d+)\%.*still investigating (?P<investigation>\d+)\% of cases.*', content, re.MULTILINE | re.DOTALL)
       if m:
@@ -186,42 +171,31 @@ def get_timeseries_data(base_url):
         community_perc = parse_perc(m.group('community'))
         investigation_perc = parse_perc(m.group('investigation'))
 
-        overseas = int(round(confirmed * overseas_perc))
-        community = int(round(confirmed * community_perc))
-        epi_link = int(round(confirmed * epi_link_perc))
-        investigation = int(round(confirmed * investigation_perc))
+        overseas = int(round(tmp_data['confirmed'] * overseas_perc))
+        community = int(round(tmp_data['confirmed'] * community_perc))
+        epi_link = int(round(tmp_data['confirmed'] * epi_link_perc))
+        investigation = int(round(tmp_data['confirmed'] * investigation_perc))
 
-    m = re.match(r'.*total (?:(?:number of cases carried out)|(?:tests)|(?:(?:number )?of (lab )?tests)) (?:undertaken )?(?:completed )?to date (to|of|is|are) (?P<tests>[\d,]+)[^\d].*', content, re.MULTILINE | re.DOTALL)
-    if m:
-      tests = parse_num(m.group('tests'))
-    else:
-      m = re.match(r'.*[^\d,](?P<tests>[\d,]+) (?:total )?tests (?:have been )?processed to date\..*', content, re.MULTILINE | re.DOTALL)
-      if m:
-        tests = parse_num(m.group('tests'))
-      else:
-        m = re.match(r'.*tests completed(?: yesterday,)? (with|for) a combined total to date of (?P<tests>[\d,]+)\..*', content, re.MULTILINE | re.DOTALL)
-        if m:
-          tests = parse_num(m.group('tests'))
 
-    if confirmed is not None:
+    if 'confirmed' in tmp_data:
       data[date.strftime('%Y-%m-%d')] = {
-        'confirmed': confirmed,
+        'confirmed': tmp_data['confirmed'],
       }
 
-      if recovered is not None:
-        data[date.strftime('%Y-%m-%d')]['recovered'] = recovered
+      if 'recovered' in tmp_data:
+        data[date.strftime('%Y-%m-%d')]['recovered'] = tmp_data['recovered']
 
-      if deaths is not None:
-        data[date.strftime('%Y-%m-%d')]['deaths'] = deaths
+      if 'deaths' in tmp_data:
+        data[date.strftime('%Y-%m-%d')]['deaths'] = tmp_data['deaths']
 
-      if hospitalized is not None:
-        data[date.strftime('%Y-%m-%d')]['hospitalized'] = hospitalized
+      if 'hospitalized' in tmp_data:
+        data[date.strftime('%Y-%m-%d')]['hospitalized'] = tmp_data['hospitalized']
 
-      if icu is not None:
-        data[date.strftime('%Y-%m-%d')]['icu'] = icu
+      if 'icu' in tmp_data:
+        data[date.strftime('%Y-%m-%d')]['icu'] = tmp_data['icu']
 
-      if tests is not None:
-        data[date.strftime('%Y-%m-%d')]['tested'] = tests
+      if 'tests' in tmp_data:
+        data[date.strftime('%Y-%m-%d')]['tested'] = tmp_data['tests']
 
       data[date.strftime('%Y-%m-%d')]['sources'] = {
         'Overseas acquired': overseas,
