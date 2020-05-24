@@ -106,6 +106,7 @@ def get_timeseries_data(base_url):
         r'.*We have (?P<recovered>[\d,]+) people who have recovered from COVID-19.*',
         r'.*as having recovered from COVID-19, an increase of \w+ on yesterday, for a total of (?P<recovered>[\d,]+)\..*',
         r'.*no change to the number of people recovered at (?P<recovered>[\d,]+) .*',
+        r'.*taking recoveries to (?P<recovered>[\d,]+)\..*',
       ],
       'confirmed': [
         r'.*This means the current national total is (?P<confirmed>[\d,]+)[,\.].*',
