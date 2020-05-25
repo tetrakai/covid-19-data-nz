@@ -105,7 +105,7 @@ def get_timeseries_data(base_url):
         r'.*(?:(?:our cases,)|with|are|have) (?P<recovered>[\d,]+) (?:people )?(?:cases )?(?:that )?(?:are )?reported as (?:having )?recovered.*',
         r'.*We have (?P<recovered>[\d,]+) people who have recovered from COVID-19.*',
         r'.*as having recovered from COVID-19, an increase of \w+ on yesterday, for a total of (?P<recovered>[\d,]+)\..*',
-        r'.*no change to the number of people recovered at (?P<recovered>[\d,]+) .*',
+        r'.*no change to the number of (?:people )?recovered (?:cases which remain )?at (?P<recovered>[\d,]+)[\. ].*',
         r'.*taking recoveries to (?P<recovered>[\d,]+)\..*',
       ],
       'confirmed': [
