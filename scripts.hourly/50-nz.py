@@ -108,7 +108,7 @@ def get_timeseries_data(base_url):
         r'.*no change to the number of (?:people )?recovered (?:cases which remain )?at (?P<recovered>[\d,]+)[\. ].*',
         r'.*taking recoveries to (?P<recovered>[\d,]+)\..*',
         r'.*we can report \w+ new recovered cases taking the total to (?P<recovered>[\d,]+)\..*',
-        r'.*recovered case(?:s)? meaning this total is now (?P<recovered>[\d,]+)\..*',
+        r'.*recovered case(?:s)?(?: meaning this total)? is now (?P<recovered>[\d,]+)\..*',
         r'.*recovered cases is unchanged at (?P<recovered>[\d,]+)\..*',
       ],
       'confirmed': [
