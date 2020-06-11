@@ -109,7 +109,7 @@ def get_timeseries_data(base_url):
         r'.*taking recoveries to (?P<recovered>[\d,]+)\..*',
         r'.*we can report \w+ new recovered cases taking the total to (?P<recovered>[\d,]+)\..*',
         r'.*recovered case(?:s)?(?: meaning this total)? is now (?P<recovered>[\d,]+)\..*',
-        r'.*recovered cases is unchanged at (?P<recovered>[\d,]+)\..*',
+        r'.*recovered cases is (?:unchanged at )?(?P<recovered>[\d,]+)\..*',
       ],
       'confirmed': [
         r'.*This means the current national total is (?P<confirmed>[\d,]+)[,\.].*',
