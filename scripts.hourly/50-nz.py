@@ -110,12 +110,13 @@ def get_timeseries_data(base_url):
         r'.*we can report \w+ new recovered cases taking the total to (?P<recovered>[\d,]+)\..*',
         r'.*recovered case(?:s)?(?: meaning this total)? is now (?P<recovered>[\d,]+)\..*',
         r'.*recovered cases is (?:unchanged at )?(?P<recovered>[\d,]+)\..*',
+        r'.*recovered cases remains at (?P<recovered>[\d,]+)\..*',
       ],
       'confirmed': [
         r'.*This means the current national total is (?P<confirmed>[\d,]+)[,\.].*',
         # The [^W][^\'][^'s] here is a silly hack to work around a single day where NZ
         # Health said "NSW's total number of cases is..."
-        r'.*[^W][^\'][^s] total (?:number )?of (?:confirmed and probable )?(?:COVID-19 )?cases (?:in New Zealand )?(is|to) (?:a total of )?(?P<confirmed>[\d,]+)[^\d,].*',
+        r'.*[^W][^\'][^s] total (?:number )?of (?:confirmed and probable )?(?:COVID-19 )?cases (?:in New Zealand )?(is|to) (?:now )?(?:a total of )?(?P<confirmed>[\d,]+)[^\d,].*',
         r'.*total number of COVID-19 cases in New Zealand, which remains at (?P<confirmed>[\d,]+)[^\d,].*',
         r'.*total of confirmed and probable cases[^.]+ (to|at) (?P<confirmed>[\d,]+)[^\d,].*',
       ],
