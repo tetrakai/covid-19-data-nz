@@ -113,7 +113,9 @@ def get_timeseries_data(base_url):
       ],
       'confirmed': [
         r'.*This means the current national total is (?P<confirmed>[\d,]+)[,\.].*',
-        r'.*total (?:number )?of (?:confirmed and probable )?(?:COVID-19 )?cases (?:in New Zealand )?(is|to) (?:a total of )?(?P<confirmed>[\d,]+)[^\d,].*',
+        # The [^W][^\'][^'s] here is a silly hack to work around a single day where NZ
+        # Health said "NSW's total number of cases is..."
+        r'.*[^W][^\'][^s] total (?:number )?of (?:confirmed and probable )?(?:COVID-19 )?cases (?:in New Zealand )?(is|to) (?:a total of )?(?P<confirmed>[\d,]+)[^\d,].*',
         r'.*total number of COVID-19 cases in New Zealand, which remains at (?P<confirmed>[\d,]+)[^\d,].*',
         r'.*total of confirmed and probable cases[^.]+ (to|at) (?P<confirmed>[\d,]+)[^\d,].*',
       ],
