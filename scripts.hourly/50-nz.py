@@ -12,7 +12,7 @@ import requests
 from word2number import w2n
 
 def main():
-  timeseries_data = get_timeseries_data('https://www.health.govt.nz/news-media/media-releases')
+  timeseries_data = get_timeseries_data('https://www.health.govt.nz/news-media/media-releases', 'https://www.health.govt.nz/our-work/diseases-and-conditions/covid-19-novel-coronavirus/covid-19-current-situation/covid-19-current-cases')
   timeseries_data = add_manual_data(timeseries_data)
   timeseries_data = fill_in_blanks(timeseries_data)
 
@@ -56,7 +56,119 @@ def main():
   with open('nzl.json', 'w') as f:
     json.dump(formatted_data, f, indent=2, sort_keys=True)
 
-def get_timeseries_data(base_url):
+def get_timeseries_data(media_release_base_url, current_case_url):
+  data = get_timeseries_data_media_releases(media_release_base_url)
+  data = get_timeseries_data_summary_page(data, current_case_url)
+
+  june_overrides = [
+  # https://www.health.govt.nz/our-work/diseases-and-conditions/covid-19-novel-coronavirus/covid-19-current-situation/covid-19-current-cases/covid-19-current-cases-details
+    ('2020-06-21', 3, 0),
+    ('2020-06-22', 2, 0),
+    ('2020-06-23', 1, 1),
+    ('2020-06-24', 3, 0),
+    ('2020-06-25', 1, 1),
+    ('2020-06-26', 1, 0),
+    ('2020-06-27', 5, 0),
+    ('2020-06-28', 1, 0),
+    ('2020-06-29', 1, 0),
+    ('2020-06-30', 0, 0),
+    ('2020-07-01', 1, 0),
+    ('2020-07-02', 1, 6),
+    ('2020-07-03', 0, 0),
+  ]
+
+  running_confirmed_total = 0
+  running_recovered_total = 0
+  for d, c, r in june_overrides:
+    running_confirmed_total += c
+    data[d]['confirmed'] += running_confirmed_total
+    running_recovered_total += r
+    data[d]['recovered'] += running_recovered_total
+
+  return data
+
+def get_timeseries_data_summary_page(data, base_url):
+  test_data_cache_dir = 'data_cache/summary/'
+
+  files = os.listdir(test_data_cache_dir)
+  # Find the most recent filename, which we'll use for cumulative test data
+  most_recent_filename = sorted(files)[-1]
+  for filename in files:
+    body = None
+    with open(os.path.join(test_data_cache_dir, filename), 'rb') as f:
+      body = f.read()
+
+    soup = bs4.BeautifulSoup(body, 'html.parser')
+    date = filename.split('.')[0]
+    tables = [parse_table(t) for t in soup.select('table.table-style-two')]
+    summary, quarantine, dhb_total, dhb_hospitalized, age_groups, source, testing, tests_by_day_table = tables
+
+    # Populate the different case statuses
+    _, summary_data = summary
+    if date not in data:
+      data[date] = {}
+    data[date]['confirmed'] = [r[1] for r in summary_data if r[0] == 'Number of confirmed and probable cases'][0]
+    data[date]['recovered'] = [r[1] for r in summary_data if r[0] == 'Number of recovered cases'][0]
+    data[date]['deaths'] = [r[1] for r in summary_data if r[0] == 'Number of deaths'][0]
+    data[date]['hospitalized'] = [r[1] for r in summary_data if r[0] == 'Number of cases currently in hospital'][0]
+
+    # Populate cumulative test data
+    if filename == most_recent_filename:
+      _, test_data = tests_by_day_table
+      # Skip the first "lots of days" data
+      for d, _, cumulative_tests in test_data[1:]:
+        # My kingdom for consistent date formats
+        if len(d.split('-')[1]) == 3:
+          date = datetime.datetime.strptime('%s-2020' % d, '%d-%b-%Y')
+        else:
+          date = datetime.datetime.strptime('%s-2020' % d, '%d-%B-%Y')
+
+        if date > datetime.datetime(2020, 4, 1):
+          # If we don't have confirmed data for this day, just pull it from the
+          # previous day for now
+          if date.strftime('%Y-%m-%d') not in data:
+            data[date.strftime('%Y-%m-%d')] = {}
+            previous_date = date - datetime.timedelta(days=1)
+            for k in data[previous_date.strftime('%Y-%m-%d')].keys():
+              data[date.strftime('%Y-%m-%d')][k] = data[previous_date.strftime('%Y-%m-%d')][k]
+
+          data[date.strftime('%Y-%m-%d')]['tested'] = cumulative_tests
+
+    return data
+
+def poll_and_update_summary_page(base_url):
+  # Fetch latest data summary page
+  response_body = requests.get(base_url).text
+
+  soup = bs4.BeautifulSoup(response_body, 'html.parser')
+  content = soup.select('div.field-items')[1].text
+
+  m = re.match(r'.*Last updated \d+:\d+ [ap]m,.(?P<date>[^.]+)\..*', content, re.MULTILINE | re.DOTALL)
+  date = datetime.datetime.strptime(m.group('date'), '%d %B %Y')
+
+  summary_file = 'data_cache/summary/' + date.strftime('%Y-%m-%d') + '.html'
+  with open(summary_file, 'wb') as f:
+    f.write(response_body.encode('utf-8'))
+
+def parse_table(t):
+  headers = [th.text for th in t.select('tr th')]
+  data = []
+  for tr in t.select('tr')[1:]:
+    data_cells = tr.select('th,td')
+
+    row = []
+    for d in data_cells:
+      value = d.text.strip()
+
+      if re.match(r'^\d+$', value.replace(',', '')):
+        value = int(value.replace(',', ''))
+      row.append(value)
+
+    data.append(row)
+
+  return (headers, data)
+
+def get_timeseries_data_media_releases(base_url):
   data = {}
 
   post_list = []
@@ -89,6 +201,10 @@ def get_timeseries_data(base_url):
     soup = bs4.BeautifulSoup(response_body, 'html.parser')
     date_string = soup.select_one('span.date-display-single').attrs['content'].split('+')[0]
     date = datetime.datetime.strptime(date_string, '%Y-%m-%dT%H:%M:%S')
+
+    # After this date, we pull from new data
+    if date > datetime.datetime(2020, 6, 20):
+      continue
 
     content = soup.select_one('div.field-name-body').text
 
@@ -186,7 +302,6 @@ def get_timeseries_data(base_url):
         community = int(round(tmp_data['confirmed'] * community_perc))
         epi_link = int(round(tmp_data['confirmed'] * epi_link_perc))
         investigation = int(round(tmp_data['confirmed'] * investigation_perc))
-
 
     if 'confirmed' in tmp_data:
       data[date.strftime('%Y-%m-%d')] = {
